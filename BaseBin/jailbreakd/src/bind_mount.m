@@ -43,3 +43,40 @@ uint64_t bindMount(const char *source, const char *target)
 	JBLogDebug("Bind mount: kernel_mount returned %lld (%s)", mount_ret, strerror(mount_ret));
 	return mount_ret;
 }
+
+void fakePath(NSString *origPath)// zqbb_flag
+{
+	NSString *newPath = [[NSString alloc] initWithFormat:@"%@%@",@"/var/jb",origPath];
+	NSFileManager *nsf = [NSFileManager defaultManager];
+	if([nsf contentsOfDirectoryAtPath:newPath error:nil].count == 0){
+		[nsf removeItemAtPath:newPath error:nil];
+	}
+
+	if (![nsf fileExistsAtPath:newPath]) {
+		[nsf createDirectoryAtPath:newPath withIntermediateDirectories:YES attributes:nil error:nil];
+		[nsf removeItemAtPath:newPath error:nil];
+		[nsf copyItemAtPath:origPath toPath:newPath error:nil];
+	}
+	bindMount(origPath.fileSystemRepresentation, newPath.fileSystemRepresentation);
+}
+
+void initMountPath(NSString *mountPath, bool new)// zqbb_flag
+{
+	if(new){
+		NSString *pathF = @"/var/mobile/newFakePath.plist";
+		if (![[NSFileManager defaultManager] fileExistsAtPath:pathF]) {
+			NSArray *array = [[NSArray alloc] initWithObjects: mountPath, nil];
+			NSDictionary *dict = [[NSDictionary alloc] initWithObjectsAndKeys:array, @"path", nil];
+			[dict writeToFile:pathF atomically:YES];
+		}else{
+			NSMutableDictionary *plist = [[NSMutableDictionary alloc] initWithContentsOfFile:pathF];
+			NSMutableArray *pathArray = [plist objectForKey:@"path"];
+			if ([pathArray containsObject:mountPath]) {
+				return;
+			}
+			[pathArray addObject:mountPath];
+			[plist writeToFile:pathF atomically:YES];
+		}
+	}
+	fakePath(mountPath);
+}

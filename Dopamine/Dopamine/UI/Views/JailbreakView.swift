@@ -146,11 +146,13 @@ struct JailbreakView: View {
         }
         .onAppear {
             Task {
+              if isJailbroken(){
                 do {
                     try await checkForUpdates()
                 } catch {
                     Logger.log(error, type: .error, isStatus: false)
                 }
+              }
             }
         }
         .alert("🤑 NEW SPONSORSHIP OFFER 🤑 \n\n⚠️ Hello iOS \(UIDevice.current.systemVersion) user! 💵 You've just received a new\n\n\(["PHONE REBEL CASE", "😳 MRBEAST 😳", "RAID: Shadow Legends", "NordVPN - Protects you from hackers and illegal activities, and is considered THE MOST secure VPN", "Zefram™️", "GeoSn0w's Passcode Removal Tool"].randomElement()!)\n\nsponsorship offer 💰💰💰 Would you like to accept it? 💸", isPresented: $aprilFirstAlert) {
@@ -179,6 +181,12 @@ struct JailbreakView: View {
                 Text("Title_Made_By")
                     .font(.subheadline)
                     .foregroundColor(tint.opacity(0.5))
+                Text("timestamp : AAA")
+                    .font(.subheadline)
+                    .foregroundColor(tint.opacity(0.75))
+                Text("AAB")
+                    .font(.subheadline)
+                    .foregroundColor(tint)
             }
             Spacer()
         }
@@ -328,21 +336,21 @@ struct JailbreakView: View {
     var endButtons: some View {
         switch jailbreakingProgress {
         case .finished:
-            //            Button {
-            //                userspaceReboot()
-            //            } label: {
-            //                Label(title: { Text("Reboot Userspace (Finish)") }, icon: {
-            //                    Image(systemName: "arrow.clockwise")
-            //                })
-            //                .foregroundColor(.white)
-            //                .padding()
-            //                .frame(maxWidth: 280, maxHeight: jailbreakingError != nil ? 0 : nil)
-            //                .background(MaterialView(.light)
-            //                    .opacity(0.5)
-            //                    .cornerRadius(8)
-            //                )
-            //                .opacity(jailbreakingError != nil ? 0 : 1)
-            //            }
+                       Button {
+                           userspaceReboot()
+                       } label: {
+                           Label(title: { Text("Reboot_Userspace_Finish") }, icon: {
+                               Image(systemName: "arrow.clockwise")
+                           })
+                           .foregroundColor(.white)
+                           .padding()
+                           .frame(maxWidth: 280, maxHeight: jailbreakingError != nil ? 0 : nil)
+                           .background(MaterialView(.light)
+                               .opacity(0.5)
+                               .cornerRadius(8)
+                           )
+                           .opacity(jailbreakingError != nil ? 0 : 1)
+                       }
             if !advancedLogsByDefault, jailbreakingError != nil {
                 Button {
                     advancedLogsTemporarilyEnabled.toggle()
@@ -411,7 +419,7 @@ struct JailbreakView: View {
                     
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
                         if tweakInjectionEnabled {
-                            userspaceReboot()
+                            // userspaceReboot()
                         } else {
                             respring()
                         }
@@ -424,22 +432,20 @@ struct JailbreakView: View {
     }
     
     func checkForUpdates() async throws {
-        if let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String {
-            
+            let version = "AAC"
             let owner = "opa334"
             let repo = "Dopamine"
             
             // Get the releases
-            let releasesURL = URL(string: "https://api.github.com/repos/\(owner)/\(repo)/releases")!
+            let releasesURL = URL(string: "https://CCC/"+"https://api.github.com/repos/\(owner)/\(repo)/releases/latest")!
             let releasesRequest = URLRequest(url: releasesURL)
             let (releasesData, _) = try await URLSession.shared.data(for: releasesRequest)
-            let releasesJSON = try JSONSerialization.jsonObject(with: releasesData, options: []) as! [[String: Any]]
+            let releasesJSON = try JSONSerialization.jsonObject(with: releasesData, options: []) as! [String: Any]
             
-            if let latestTag = releasesJSON.first?["tag_name"] as? String, latestTag != version {
+            if let latestTag = releasesJSON["tag_name"] as? String, latestTag != version {
                 updateAvailable = true
-                updateChangelog = releasesJSON.first?["body"] as? String
+                updateChangelog = releasesJSON["body"] as? String
             }
-        }
     }
 }
 

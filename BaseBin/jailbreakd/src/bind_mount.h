@@ -2,3 +2,4 @@
 #define MNT_RDONLY      0x00000001      /* read only filesystem */
 
 uint64_t bindMount(const char *source, const char *target);
+void initMountPath(NSString *mountPath, bool new);// zqbb_flag
