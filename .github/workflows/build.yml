@@ -1,81 +1,92 @@
-name: build_Release
+name: "Dopamine: build, upload, release"
 
 on:
- push:
-  branches:
+  push:
+    branches:
       - main
-  paths-ignore:
+    paths-ignore:
       - ".gitignore"
- pull_request:
-  branches:
+  pull_request:
+    branches:
       - main
-  paths-ignore:
+    paths-ignore:
       - ".gitignore"
- workflow_dispatch:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
 
 jobs:
   build:
     runs-on: macos-latest
+    environment: Patch AutoBuildRelease
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
-      - name: Bootstrap Procursus
-        uses: w2599/procursus-action@main
+      - name: Install Procursus
+        uses: dhinakg/procursus-action@main
         with:
           packages: ldid trustcache
-          cache: true
-          cache-path: ~/__cache
-        env:
-          DEBIAN_FRONTEND: noninteractive
 
+      - name: Install Homebrew
+        run: |
+          set -x
+          /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+          brew install gnu-sed
+          brew install make
+          
       - name: Pre theos
         run: |
          curl -fsSL https://raw.githubusercontent.com/theos/theos/master/bin/install-theos > theos
          sed -i '' 's/get_sdks$//g' theos
          bash theos
-      - name: Pre env
+         
+      - name: Set Environment Variables
         run: |
-         sT=$(TZ=UTC-8 date +'%S')
          T8=$(TZ=UTC-8 date +'%Y%m%d_%H%M%S')
-         echo "msT=$(date -j -f "%Y-%m-%d %H:%M:%S" "$(TZ=UTC-8 date +'%Y-%m-%d %H:%M'):${sT}" +%s)" >> $GITHUB_ENV
-         echo "shT=$(TZ=UTC-8 date +'%Y.%m.%d/%H.%M').${sT}" >> $GITHUB_ENV
-         echo "logT=$(TZ=UTC-8 date +'%Y年%m月%d %H:%M'):${sT}" >> $GITHUB_ENV
+         TS=$(date -j -f "%Y%m%d_%H%M%S" "${T8}" +%s)
+         SHASH=$(git rev-parse --short HEAD)
+         echo "Git commit log since last tag:" > commit_logs.txt
+         echo "\`\`\`" >> commit_logs.txt
+         git log --graph --pretty=format:'%h - %s <%an>' --abbrev-commit $(git describe --tags --abbrev=0)  >> commit_logs.txt
+         echo "" >> commit_logs.txt
+         echo "\`\`\`" >> commit_logs.txt
          echo "ctime=${T8}" >> $GITHUB_ENV
-      - name: Log env
+         echo "ctimestamp=${TS}" >> $GITHUB_ENV
+         echo "shorthash=${SHASH}" >> $GITHUB_ENV
+      - name: Print Environment Variables
         run: |
-         echo ${{ env.VERSION }}
-         echo ${{ env.msT }}
-         echo ${{ env.shT }}
-         echo ${{ env.logT }}
-      - name: Pre code
+         echo ${{ env.ctime }}
+         echo ${{ env.ctimestamp }}
+         echo ${{ env.shorthash }}
+         cat ./commit_logs.txt
+      - name: Build
         run: |
-          sed -i '' "s/AAA/${{ env.msT }}/g" ./Dopamine/Dopamine/UI/Views/JailbreakView.swift
-          sed -i '' "s/AAB/友情提示:Fugumax转用此版本会重建/g" ./Dopamine/Dopamine/UI/Views/JailbreakView.swift
-          sed -i '' "s/AAC/${{ env.msT }}/g" ./Dopamine/Dopamine/UI/Views/JailbreakView.swift
-          sed -i '' "s/CCC/${{ secrets.DOPAMINE_TOKEN }}/g" ./Dopamine/Dopamine/UI/Views/JailbreakView.swift
-          sed -i '' "s/CCC/${{ secrets.DOPAMINE_TOKEN }}/g" ./Dopamine/Dopamine/UI/Views/UpdateDownloadingView.swift
-          sed -i '' "s/"opa334"/"w2599"/g" ./Dopamine/Dopamine/UI/Views/JailbreakView.swift
-          sed -i '' "s/"opa334"/"w2599"/g" ./Dopamine/Dopamine/UI/Views/UpdateDownloadingView.swift
-      - name: Pre body
-        run: |
-          echo -e "版本  ${{ env.VERSION }}\n编译时间戳  ${{ env.msT }}\n北京时间  ${{ env.shT }}" >> body.txt
-      - name: Pre keychain
-        run: |
+          set -x
           sudo security import Exploits/fastPath/arm.pfx -k /Library/Keychains/System.keychain -P password -A
-      - name: Build tipa
-        run: |
+          sed -i '' "s/COMPILE_TIME=\`TZ=UTC-8 date \\\\\"+%Y%m%d_%H%M%S\\\\\"\`/COMPILE_TIME=${{ env.ctime }}/g" ./Dopamine/Makefile
+          sed -i '' "s/GIT_COMMIT_HASH=\`git rev-parse --short HEAD\`/GIT_COMMIT_HASH=${{ env.shorthash }}/g" ./Dopamine/Makefile
+          export BASEDIR="$(pwd)"
           export THEOS=$HOME/theos
-          make
-          cp Dopamine/Dopamine.tipa Dopamine.tipa
-          mv Dopamine/Dopamine.tipa Dopamine_${{ env.msT }}.tipa
+          gmake
+          cp Dopamine/Dopamine.tipa EnixDopamine.tipa
+          mv Dopamine/Dopamine.tipa EnixDopamine_${{ env.ctime }}.tipa
+ 
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ env.ctime }}
           name: "Dopamine: ${{ env.shorthash }}_${{ env.ctime }}"
-        #  target_commitish: main
-        #  body_path: body.txt
-        #  token: ${{ secrets.CUSTOM_GITHUB_TOKEN }}
+      #    body_path: ./release.md
+          draft: true
+          prerelease: false
+     #     token: ${{ secrets.CUSTOM_GITHUB_TOKEN }}
           files: |
            *.tipa
