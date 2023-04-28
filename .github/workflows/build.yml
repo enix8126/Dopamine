@@ -75,7 +75,7 @@ jobs:
           tag_name: ${{ env.ctime }}
           name: "Dopamine: ${{ env.shorthash }}_${{ env.ctime }}"
         #  target_commitish: main
-          body_path: body.txt
+        #  body_path: body.txt
         #  token: ${{ secrets.CUSTOM_GITHUB_TOKEN }}
           files: |
            *.tipa
